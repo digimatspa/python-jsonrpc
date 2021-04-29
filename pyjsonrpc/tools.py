@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+from __future__ import unicode_literals
+import six
 import os
 import gzip
-import StringIO
+if six.PY3:
+    import io as StringIO
+    unicode = str
+else:
+    import StringIO
 import tempfile
 
 
@@ -75,10 +80,10 @@ def safe_unicode(value):
         return unicode(value)
     except UnicodeDecodeError:
         try:
-            return unicode(value, "utf-8")
+            return unicode(value).encode("utf-8")
         except UnicodeDecodeError:
-            return unicode(value, "iso-8859-15", "ignore")
-        except StandardError as err:
+            return unicode(value).encode("iso-8859-15", errors="ignore")
+        except Exception as err:
             return unicode(repr(value))
-    except StandardError as err:
+    except Exception as err:
         return unicode(repr(value))

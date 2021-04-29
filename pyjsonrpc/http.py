@@ -1,26 +1,53 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+from __future__ import print_function, unicode_literals
 import os
 import sys
-import urllib2
-import StringIO
 import base64
-import BaseHTTPServer
-import SocketServer
-import httplib
-import urllib
-import urlparse
 import gzip
 import tempfile
-import Cookie
 import logging
-import rpcrequest
-import rpcresponse
-import rpcerror
-import rpclib
-import rpcjson
-import tools
+import six
+if six.PY2:
+    import urllib2
+    import StringIO
+    import BaseHTTPServer
+    import SocketServer
+    import httplib
+    import urllib
+    import urlparse
+    import Cookie
+    import rpcrequest
+    import rpcresponse
+    import rpcerror
+    import rpclib
+    import rpcjson
+    import tools
+else:
+
+    import urllib.request, urllib.error, urllib.parse
+    import io
+    import http.server
+    import socketserver
+    import http.client
+    import urllib.request, urllib.parse, urllib.error
+    import urllib.parse
+    import http.cookies
+    from . import rpcrequest
+    from . import rpcresponse
+    from . import rpcerror
+    from . import rpclib
+    from . import rpcjson
+    from . import tools
+    basestring = (str, bytes)
+    BaseHTTPServer = http.server
+    SocketServer = socketserver
+    urllib2 = urllib.request
+    unicode = str
+    StringIO = io
+    Cookey = http.cookies
+    urlparse = urllib.parse
+
 
 
 # Workaround for Google App Engine
@@ -81,10 +108,11 @@ def http_request(
 
     # Debug
     if debug:
-        logging.debug(u"Client-->Server: {json_string}".format(json_string = repr(json_string)))
+        logging.debug("Client-->Server: {json_string}".format(json_string=repr(json_string)))
 
     # Create request and add data
     request = urllib2.Request(url)
+
 
     if gzipped:
         # Compress content (SpooledTemporaryFile to reduce memory usage)
@@ -94,9 +122,15 @@ def http_request(
         request.add_header("Content-Encoding", "gzip")
         request.add_header("Accept-Encoding", "gzip")
         spooled_file.seek(0)
-        request.add_data(spooled_file)
+        if six.PY2:
+            request.add_data(spooled_file)
+        else:
+            request.data = spooled_file
     else:
-        request.add_data(json_string)
+        if six.PY2:
+            request.add_data(json_string)
+        else:
+            request.data = json_string
 
     # Content Type
     request.add_header("Content-Type", content_type or "application/json")
@@ -113,27 +147,29 @@ def http_request(
 
     # Additional headers (overrides other headers)
     if additional_headers:
-        for key, val in additional_headers.items():
+        for key, val in six.iteritems(additional_headers):
             request.add_header(key, val)
 
     # Send request to server
+    http_error_exception = urllib2.HTTPError if six.PY2 else urllib.error.HTTPError
     try:
         if ssl_context:
             try:
                 response = urllib2.urlopen(
-                    request, timeout = timeout, context = ssl_context
+                    request, timeout=timeout, context=ssl_context
                 )
             except TypeError as err:
-                if u"context" in unicode(err):
-                    raise NotImplementedError(u"SSL-Context needs Python >= 2.7.9")
+                if "context" in unicode(err):
+                    raise NotImplementedError("SSL-Context needs Python >= 2.7.9")
                 else:
                     raise
         else:
-            response = urllib2.urlopen(request, timeout = timeout)
-    except urllib2.HTTPError as err:
+            response = urllib2.urlopen(request, timeout=timeout)
+
+    except http_error_exception as err:
         if debug:
             retval = err.read()
-            logging.debug(u"Client<--Server: {retval}".format(retval = repr(retval)))
+            logging.debug("Client<--Server: {retval}".format(retval=repr(retval)))
         raise
 
     # Analyze response and return result
@@ -142,13 +178,13 @@ def http_request(
             response_file = tools.SpooledFile(source_file = response)
             if debug:
                 retval = tools.gunzip_file(response_file)
-                logging.debug(u"Client<--Server: {retval}".format(retval = repr(retval)))
+                logging.debug("Client<--Server: {retval}".format(retval = repr(retval)))
                 return retval
             return tools.gunzip_file(response_file)
         else:
             if debug:
                 retval = response.read()
-                logging.debug(u"Client<--Server: {retval}".format(retval = repr(retval)))
+                logging.debug("Client<--Server: {retval}".format(retval=repr(retval)))
                 return retval
             return response.read()
     finally:
@@ -332,184 +368,178 @@ class HttpClient(object):
 
         return self._Method(http_client_instance = self, method = method)
 
-
 class ThreadingHttpServer(SocketServer.ThreadingMixIn, BaseHTTPServer.HTTPServer):
-    """
-    Threading HTTP Server
-    """
-    pass
+        """
+        Threading HTTP Server
+        """
+        pass
 
 
 class HttpRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler, rpclib.JsonRpc):
-    """
-    HttpRequestHandler for JSON-RPC-Requests
-
-    Info: http://www.simple-is-better.org/json-rpc/transport_http.html
-    """
-
-    protocol_version = "HTTP/1.1"
-    content_type = "application/json"
-
-
-    def set_content_type(self, content_type):
         """
-        Set content-type to *content_type*
+        HttpRequestHandler for JSON-RPC-Requests
+
+        Info: http://www.simple-is-better.org/json-rpc/transport_http.html
         """
 
-        self.send_header("Content-Type", content_type)
+        protocol_version = "HTTP/1.1"
+        content_type = "application/json"
 
+        def set_content_type(self, content_type):
+            """
+            Set content-type to *content_type*
+            """
 
-    def set_content_type_json(self):
-        """
-        Set content-type to "application/json"
-        """
+            self.send_header("Content-Type", content_type)
 
-        self.set_content_type("application/json")
+        def set_content_type_json(self):
+            """
+            Set content-type to "application/json"
+            """
 
+            self.set_content_type("application/json")
 
-    def set_no_cache(self):
-        """
-        Disable caching
-        """
+        def set_no_cache(self):
+            """
+            Disable caching
+            """
 
-        self.send_header("Cache-Control", "no-cache")
-        self.send_header("Pragma", "no-cache")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Pragma", "no-cache")
 
+        def set_content_length(self, length):
+            """
+            Set content-length-header
+            """
 
-    def set_content_length(self, length):
-        """
-        Set content-length-header
-        """
+            self.send_header("Content-Length", str(length))
 
-        self.send_header("Content-Length", str(length))
+        def set_content_encoding(self, content_encoding):
+            """
+            Set content-encoding to *content_encoding*
+            """
 
+            self.send_header("Content-Encoding", content_encoding)
 
-    def set_content_encoding(self, content_encoding):
-        """
-        Set content-encoding to *content_encoding*
-        """
+        def do_GET(self):
+            """
+            Handles HTTP-GET-Request
+            """
 
-        self.send_header("Content-Encoding", content_encoding)
+            # Parse URL query
+            path, query_str = urllib.splitquery(self.path) if six.PY2 else urlparse.splitquery(self.path)
+            if not query_str:
+                # Bad Request
+                return self.send_error(httplib.BAD_REQUEST)
 
+            # Parse querystring
+            query = urlparse.parse_qs(query_str)
 
-    def do_GET(self):
-        """
-        Handles HTTP-GET-Request
-        """
+            # jsonrpc
+            jsonrpc = query.get("jsonrpc")
+            if jsonrpc:
+                jsonrpc = jsonrpc[0]
 
-        # Parse URL query
-        path, query_str = urllib.splitquery(self.path)
-        if not query_str:
-            # Bad Request
-            return self.send_error(httplib.BAD_REQUEST)
+            # id
+            id = query.get("id")
+            if id:
+                id = id[0]
 
-        # Parse querystring
-        query = urlparse.parse_qs(query_str)
+            # method
+            method = query.get("method")
+            if method:
+                method = method[0]
+            else:
+                # Bad Request
+                return self.send_error(httplib.BAD_REQUEST)
 
-        # jsonrpc
-        jsonrpc = query.get("jsonrpc")
-        if jsonrpc:
-            jsonrpc = jsonrpc[0]
+            # params
+            args = []
+            kwargs = {}
+            params = query.get("params")
+            if params:
+                params = rpcjson.loads(params[0])
+                if isinstance(params, list):
+                    args = params
+                    kwargs = {}
+                elif isinstance(params, dict):
+                    args = []
+                    kwargs = params
 
-        # id
-        id = query.get("id")
-        if id:
-            id = id[0]
+            # Create JSON request string
+            request_dict = rpcrequest.create_request_dict(method, *args, **kwargs)
+            request_dict["jsonrpc"] = jsonrpc
+            request_dict["id"] = id
+            request_json = rpcjson.dumps(request_dict)
 
-        # method
-        method = query.get("method")
-        if method:
-            method = method[0]
-        else:
-            # Bad Request
-            return self.send_error(httplib.BAD_REQUEST)
+            # Call
+            response_json = self.call(request_json) or ""
 
-        # params
-        args = []
-        kwargs = {}
-        params = query.get("params")
-        if params:
-            params = rpcjson.loads(params[0])
-            if isinstance(params, list):
-                args = params
-                kwargs = {}
-            elif isinstance(params, dict):
-                args = []
-                kwargs = params
-
-        # Create JSON request string
-        request_dict = rpcrequest.create_request_dict(method, *args, **kwargs)
-        request_dict["jsonrpc"] = jsonrpc
-        request_dict["id"] = id
-        request_json = rpcjson.dumps(request_dict)
-
-        # Call
-        response_json = self.call(request_json) or ""
-
-        # Return result
-        self.send_response(code = httplib.OK)
-        self.set_content_type(self.content_type)
-        self.set_no_cache()
-        self.set_content_length(len(response_json))
-        self.end_headers()
-        self.wfile.write(response_json)
-
-
-    def do_POST(self):
-        """
-        Handles HTTP-POST-Request
-        """
-
-        # Read, analyze and parse request
-        content_length = int(self.headers.get("Content-Length", 0))
-        content_encoding = self.headers.get("Content-Encoding", "")
-        accept_encoding = self.headers.get("Accept-Encoding", "")
-
-        if "gzip" in content_encoding and not google_app_engine:
-            # Decompress
-            with tools.SpooledFile() as gzipped_file:
-                # ToDo: read chunks
-                # if content_length <= CHUNK_SIZE:
-                #     gzipped_file.write(self.rfile.read(content_length))
-                # else:
-                #     chunks_quantity = content_length % CHUNK_SIZE
-                # ...
-                gzipped_file.write(self.rfile.read(content_length))
-                gzipped_file.seek(0)
-                with gzip.GzipFile(
-                    filename = "", mode = "rb", fileobj = gzipped_file
-                ) as gz:
-                    request_json = gz.read()
-        else:
-            request_json = self.rfile.read(content_length)
-
-        # Call
-        response_json = self.call(request_json) or ""
-
-        # Return result
-        self.send_response(code = httplib.OK)
-        self.set_content_type(self.content_type)
-        self.set_no_cache()
-
-        if "gzip" in accept_encoding:
-            # Gzipped
-            content = tools.SpooledFile()
-            with gzip.GzipFile(filename = "", mode = "wb", fileobj = content) as gz:
-                gz.write(response_json)
-            content.seek(0)
-
-            # Send compressed
-            self.set_content_encoding("gzip")
-            self.set_content_length(len(content))
-            self.end_headers()
-            self.wfile.write(content.read())
-        else:
-            # Send uncompressed
+            # Return result
+            self.send_response(code=httplib.OK)
+            self.set_content_type(self.content_type)
+            self.set_no_cache()
             self.set_content_length(len(response_json))
             self.end_headers()
             self.wfile.write(response_json)
 
-        return
+        def do_POST(self):
+            """
+            Handles HTTP-POST-Request
+            """
+
+            # Read, analyze and parse request
+            content_length = int(self.headers.get("Content-Length", 0))
+            content_encoding = self.headers.get("Content-Encoding", "")
+            accept_encoding = self.headers.get("Accept-Encoding", "")
+
+            if "gzip" in content_encoding and not google_app_engine:
+                # Decompress
+                with tools.SpooledFile() as gzipped_file:
+                    # ToDo: read chunks
+                    # if content_length <= CHUNK_SIZE:
+                    #     gzipped_file.write(self.rfile.read(content_length))
+                    # else:
+                    #     chunks_quantity = content_length % CHUNK_SIZE
+                    # ...
+                    gzipped_file.write(self.rfile.read(content_length))
+                    gzipped_file.seek(0)
+                    with gzip.GzipFile(
+                            filename="", mode="rb", fileobj=gzipped_file
+                    ) as gz:
+                        request_json = gz.read()
+            else:
+                request_json = self.rfile.read(content_length)
+
+            # Call
+            response_json = self.call(request_json) or ""
+
+            # Return result
+            self.send_response(code=httplib.OK)
+            self.set_content_type(self.content_type)
+            self.set_no_cache()
+
+            if "gzip" in accept_encoding:
+                # Gzipped
+                content = tools.SpooledFile()
+                with gzip.GzipFile(filename="", mode="wb", fileobj=content) as gz:
+                    gz.write(response_json)
+                content.seek(0)
+
+                # Send compressed
+                self.set_content_encoding("gzip")
+                self.set_content_length(len(content))
+                self.end_headers()
+                self.wfile.write(content.read())
+            else:
+                # Send uncompressed
+                self.set_content_length(len(response_json))
+                self.end_headers()
+                self.wfile.write(response_json)
+
+            return
+
+
 
 
 def handle_cgi_request(methods = None):
@@ -555,13 +585,14 @@ def handle_cgi_request(methods = None):
     response_json = rpclib.JsonRpc(methods = methods).call(request_json)
 
     # Return headers
-    print "Content-Type: application/json"
-    print "Cache-Control: no-cache"
-    print "Pragma: no-cache"
-    print
+
+    print("Content-Type: application/json")
+    print("Cache-Control: no-cache")
+    print("Pragma: no-cache")
+    print()
 
     # Return result
-    print response_json
+    print(response_json)
 
 
 

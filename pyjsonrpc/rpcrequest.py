@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+import six
 import sys
 import traceback
 import uuid
-import rpcerror
-import rpcjson
+from . import rpcerror
+from . import rpcjson
 try:
     from munch import Munch as Bunch
 except ImportError as err:
     from bunch import Bunch
-
+if six.PY3:
+    unicode = str
 
 class Request(Bunch):
     """

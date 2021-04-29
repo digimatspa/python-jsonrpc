@@ -8,15 +8,25 @@ http://cherrypy.readthedocs.org/
 """
 
 import os
-import httplib
-import rpclib
-import rpcrequest
+import six
 import cherrypy
-import rpcjson
-import rpcerror
-import tools
+
+if six.PY2:
+    import httplib
+    import rpclib
+    import rpcrequest
+    import cherrypy
+    import rpcjson
+    import tools
+else:
+    import http.client as httplib
+    from . import rpclib
+    from . import rpcrequest
+    from . import rpcjson
+    from . import tools
 
 # ToDo: Replace compress and decompress with faster methods
+
 from cherrypy.lib.encoding import compress
 
 

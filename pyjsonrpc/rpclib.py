@@ -1,12 +1,22 @@
 #!/usr/bin/env python
 # coding: utf-8
+from __future__ import unicode_literals
+import six
 
 import logging
-import rpcrequest
-import rpcresponse
-import rpcerror
-import rpcjson
-from tools import safe_unicode
+if six.PY2:
+    import rpcrequest
+    import rpcresponse
+    import rpcerror
+    import rpcjson
+    from tools import safe_unicode
+else:
+    from . import rpcrequest
+    from . import rpcresponse
+    from . import rpcerror
+    from . import rpcjson
+    from .tools import safe_unicode
+    unicode = str
 
 
 def rpcmethod(func):
@@ -86,7 +96,7 @@ class JsonRpc(object):
             if method not in self.methods:
                 # Method not found error
                 error = rpcerror.MethodNotFound(
-                    data = u"Method name: '%s'" % method
+                    data = "Method name: '%s'" % method
                 )
                 responses.append(
                     rpcresponse.Response(
@@ -96,8 +106,9 @@ class JsonRpc(object):
                     )
                 )
                 # Logging error
+                logging_error_str = "{error} -- {data}"
                 logging.error(
-                    u"{error} -- {data}".format(
+                    logging_error_str.format(
                         error = safe_unicode(error),
                         data = safe_unicode(error.data)
                     )
@@ -127,8 +138,9 @@ class JsonRpc(object):
                         )
                     )
                     # Logging error
+                    logging_error_str = "{error} -- {data}"
                     logging.error(
-                        u"{error} -- {data}".format(
+                        logging_error_str.format(
                             error = safe_unicode(error),
                             data = safe_unicode(error.data)
                         )
@@ -143,8 +155,9 @@ class JsonRpc(object):
                         )
                     )
                     # Logging error
+                    logging_error_str = "{error} -- {data}"
                     logging.error(
-                        u"{error} -- {data}".format(
+                        logging_error_str.format(
                             error = safe_unicode(error),
                             data = safe_unicode(error.data)
                         )
@@ -158,8 +171,9 @@ class JsonRpc(object):
                     )
                 )
                 # Logging error
+                logging_error_str = "{error} -- {data}"
                 logging.error(
-                    u"{error} -- {data}".format(
+                    logging_error_str.format(
                         error = safe_unicode(err),
                         data = safe_unicode(err.data)
                     )
@@ -182,8 +196,9 @@ class JsonRpc(object):
                     )
                 )
                 # Logging error
+                logging_error_str = "{error} -- {data}"
                 logging.error(
-                    u"{error} -- {data}".format(
+                    logging_error_str.format(
                         error = safe_unicode(error),
                         data = safe_unicode(error.data)
                     )
@@ -193,8 +208,8 @@ class JsonRpc(object):
         responses_ = []
         for response in responses:
             if (
-                bool(response.id) or
-                bool(unicode(response.id)) if response.id is not None else False
+                    bool(response.id) or
+                    bool(unicode(response.id)) if response.id is not None else False
             ):
                 responses_.append(response.to_dict())
         responses = responses_

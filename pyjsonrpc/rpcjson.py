@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+import six
 import json as _json
 import datetime
 try:
@@ -8,6 +8,9 @@ try:
     from google.appengine.ext import ndb
 except ImportError:
     ndb = None
+
+if six.PY3:
+    basestring = (str, bytes)
 
 
 # Date ISO formats
@@ -56,20 +59,33 @@ def dumps(obj):
 
     Uses the predefined default settings.
     """
-
-    return _json.dumps(
-        obj,
-        skipkeys = dumps_skipkeys,
-        ensure_ascii = dumps_ensure_ascii,
-        check_circular = dumps_check_circular,
-        allow_nan = dumps_allow_nan,
-        cls = dumps_cls,
-        indent = dumps_indent,
-        separators = dumps_separators,
-        encoding = dumps_encoding,
-        default = dumps_default,
-        sort_keys = dumps_sort_keys
-    )
+    if six.PY2:
+        return _json.dumps(
+            obj,
+            skipkeys = dumps_skipkeys,
+            ensure_ascii = dumps_ensure_ascii,
+            check_circular = dumps_check_circular,
+            allow_nan = dumps_allow_nan,
+            cls = dumps_cls,
+            indent = dumps_indent,
+            separators = dumps_separators,
+            encoding = dumps_encoding,
+            default = dumps_default,
+            sort_keys = dumps_sort_keys
+        )
+    else:
+        return _json.dumps(
+            obj,
+            skipkeys=dumps_skipkeys,
+            ensure_ascii=dumps_ensure_ascii,
+            check_circular=dumps_check_circular,
+            allow_nan=dumps_allow_nan,
+            cls=dumps_cls,
+            indent=dumps_indent,
+            separators=dumps_separators,
+            default=dumps_default,
+            sort_keys=dumps_sort_keys
+        ).encode(dumps_encoding)
 
 
 def loads(s):
@@ -162,7 +178,7 @@ def date_time_decoder(obj):
             obj[index] = date_time_decoder(value)
 
     elif isinstance(obj, dict):
-        for key, value in obj.iteritems():
+        for key, value in six.iteritems(obj):
             obj[key] = date_time_decoder(value)
 
     return obj

@@ -1,12 +1,18 @@
 #!/usr/bin/env python
 # coding: utf-8
+import six
 
-import rpcjson
+if six.PY2:
+    import rpcjson
+    from rpcerror import InternalError
+else:
+    from . import rpcjson
+    from .rpcerror import InternalError
+    basestring = (str, bytes)
 try:
     from munch import Munch as Bunch
 except ImportError as err:
     from bunch import Bunch
-from rpcerror import InternalError
 
 
 class Response(Bunch):
@@ -31,7 +37,6 @@ class Response(Bunch):
         def __len__(self):
             return 1 if self.code else 0
 
-
     def __init__(
         self,
         jsonrpc = None,
@@ -50,7 +55,6 @@ class Response(Bunch):
         self.id = id
         self.result = result if not error else None
         self.error = error
-
 
     def to_dict(self):
         """
@@ -77,7 +81,6 @@ class Response(Bunch):
         # Finished
         return retdict
 
-
     def to_string(self):
         """
         Returns the response as JSON-string
@@ -85,10 +88,8 @@ class Response(Bunch):
 
         return rpcjson.dumps(self.to_dict())
 
-
     # Alias
     dumps = to_string
-
 
     @classmethod
     def from_dict(cls, response_dict):
@@ -99,6 +100,7 @@ class Response(Bunch):
         error = response_dict.get("error")
         if error:
             result = None
+
             if isinstance(error, basestring):
                 # String Error
                 error = cls.Error(
@@ -137,7 +139,6 @@ class Response(Bunch):
             error = error
         )
 
-
     @classmethod
     def from_string(cls, json_string):
         """
@@ -156,7 +157,6 @@ class Response(Bunch):
             return retlist
         else:
             return cls.from_dict(data)
-
 
     # Alias
     loads = from_string
