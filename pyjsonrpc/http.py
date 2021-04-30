@@ -8,6 +8,7 @@ import gzip
 import tempfile
 import logging
 import six
+from six import string_types
 if six.PY2:
     import urllib2
     import StringIO
@@ -39,7 +40,6 @@ else:
     from . import rpclib
     from . import rpcjson
     from . import tools
-    basestring = (str, bytes)
     BaseHTTPServer = http.server
     SocketServer = socketserver
     urllib2 = urllib.request
@@ -274,7 +274,7 @@ class HttpClient(object):
         """
 
         # Create JSON-RPC-request
-        if isinstance(method, basestring):
+        if isinstance(method, string_types):
             request_json = rpcrequest.create_request_json(method, *args, **kwargs)
         else:
             assert not args and not kwargs
@@ -331,7 +331,7 @@ class HttpClient(object):
         methods = []
 
         # Create JSON-RPC-request (without ID)
-        if isinstance(method, basestring):
+        if isinstance(method, string_types):
             request_dict = rpcrequest.create_request_dict(method, *args, **kwargs)
             del request_dict["id"]
             methods.append(request_dict)

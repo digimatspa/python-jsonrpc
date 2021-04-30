@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 import six
-
+from six import string_types
 if six.PY2:
     import rpcjson
     from rpcerror import InternalError
 else:
     from . import rpcjson
     from .rpcerror import InternalError
-    basestring = (str, bytes)
 try:
     from munch import Munch as Bunch
 except ImportError as err:
@@ -101,7 +100,7 @@ class Response(Bunch):
         if error:
             result = None
 
-            if isinstance(error, basestring):
+            if isinstance(error, string_types):
                 # String Error
                 error = cls.Error(
                     code = InternalError.code,

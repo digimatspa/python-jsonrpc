@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 import six
+from six import string_types
 import json as _json
 import datetime
 try:
@@ -8,10 +9,6 @@ try:
     from google.appengine.ext import ndb
 except ImportError:
     ndb = None
-
-if six.PY3:
-    basestring = (str, bytes)
-
 
 # Date ISO formats
 ISO8601_10_DIGITS = "%Y-%m-%d"
@@ -121,7 +118,7 @@ def date_time_decoder(obj):
         pyjsonrpc.rpcjson.loads_object_hook = pyjsonrpc.rpcjson.date_time_decoder
     """
 
-    if isinstance(obj, basestring):
+    if isinstance(obj, string_types):
 
         # Check min length and if "-" exists
         check_string = obj[0:10]
