@@ -101,6 +101,8 @@ def loads(s):
         "parse_int": loads_parse_int,
         "parse_constant": loads_parse_constant
     }
+    if not six.PY2:
+        kwargs.pop("encoding")
     if loads_object_pairs_hook is not None:
         kwargs["object_pairs_hook"] = loads_object_pairs_hook
 
